@@ -45,9 +45,11 @@ Rails.application.routes.draw do
     end
     resources :tools, only: %i[] do
       post :merge, on: :collection
+      post :verify, on: :collection
     end
     scope 'events' do
       resources :form_events, only: %i[index], path: 'form/:type'
+      resources :submission_events, only: %i[index], path: 'submission/:type'
     end
   end
 
@@ -75,6 +77,7 @@ Rails.application.routes.draw do
   resources :submitters_autocomplete, only: %i[index]
   resources :template_folders_autocomplete, only: %i[index]
   resources :webhook_preferences, only: %i[create]
+  resources :webhook_secret, only: %i[index create]
   resource :templates_upload, only: %i[create]
   authenticated do
     resource :templates_upload, only: %i[show], path: 'new'
@@ -122,6 +125,8 @@ Rails.application.routes.draw do
 
   resources :submit_form, only: %i[show update], path: 's', param: 'slug' do
     resources :values, only: %i[index], controller: 'submit_form_values'
+    resources :download, only: %i[index], controller: 'submit_form_download'
+    resources :decline, only: %i[create], controller: 'submit_form_decline'
     get :completed
   end
 
@@ -165,6 +170,8 @@ Rails.application.routes.draw do
       end
     end
   end
+
+  get '/js/:filename', to: 'embed_scripts#show', as: :embed_script
 
   ActiveSupport.run_load_hooks(:routes, self)
 end

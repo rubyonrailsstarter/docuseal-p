@@ -1,4 +1,4 @@
-<% status_badges = { 'awaiting' => 'badge-info', 'sent' => 'badge-info', 'completed' => 'badge-success', 'opened' => 'badge-warning' } %>
+<% status_badges = { 'awaiting' => 'badge-info', 'sent' => 'badge-info', 'completed' => 'badge-success', 'opened' => 'badge-warning', 'declined' => 'badge-error' } %>
 <div class="bg-base-200 rounded-2xl flex flex-col sm:flex-row items-strech">
   <% if local_assigns[:with_template] %>
     <% template = submission.template %>
@@ -7,12 +7,12 @@
         <div class="font-medium items-start w-full group-hover:link text-sm flex space-x-1">
           <%= svg_icon('file_text', class: 'w-4 h-4 mt-0.5 flex-shrink-0') %>
           <span style="overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;">
-            <%= template.name %>
+            <% template.name.split(/(_)/).each do |item| %><%= item %><wbr><% end %>
             <%= svg_icon('arrow_right', class: 'w-4 h-4 sm:inline group-hover:visible invisible hidden') %>
           </span>
         </div>
       </div>
-      <div class="flex-shrink-0 sm:mt-2">
+      <div class="flex-shrink-0 sm:mt-2 max-w-[50%] md:max-w-full">
         <div class="flex text-xs flex-col text-base-content/60  space-y-0.5">
           <span class="flex items-center space-x-1">
             <%= svg_icon('user', class: 'w-4 h-4 flex-shrink-0') %>
@@ -34,11 +34,19 @@
         <% submitter = submitters.first %>
         <div class="flex items-center space-x-4">
           <span class="flex flex-col md:flex-row md:items-center gap-3">
-            <div class="tooltip flex" data-tip="<%= l(submitter.status_event_at.in_time_zone(current_account.timezone), format: :short, locale: current_account.locale) %>">
-              <span class="badge <%= status_badges[submitter.status] %> md:w-32 badge-lg bg-opacity-50 uppercase text-sm font-semibold">
-                <%= submitter.status %>
-              </span>
-            </div>
+            <% if submission.expired? %>
+              <div class="tooltip flex" data-tip="<%= l(submission.expire_at.in_time_zone(current_account.timezone), format: :short, locale: current_account.locale) %>">
+                <span class="badge badge-error md:w-32 bg-opacity-50 badge-lg uppercase text-sm font-semibold">
+                  Expired
+                </span>
+              </div>
+            <% else %>
+              <div class="tooltip flex" data-tip="<%= l(submitter.status_event_at.in_time_zone(current_account.timezone), format: :short, locale: current_account.locale) %>">
+                <span class="badge <%= status_badges[submitter.status] %> md:w-32 badge-lg bg-opacity-50 uppercase text-sm font-semibold">
+                  <%= submitter.status %>
+                </span>
+              </div>
+            <% end %>
             <span class="text-lg break-all flex items-center">
               <%= submitter.name || submitter.email || submitter.phone %>
             </span>
@@ -61,7 +69,7 @@
               </download-button>
             </button>
           </form>
-        <% elsif !submission.archived_at? && !template.archived_at? %>
+        <% elsif !submission.archived_at? && !template.archived_at? && !submission.expired? && !submitter.declined_at? %>
           <% if current_user.email == submitter.email %>
             <form data-turbo="false" method="get" action="<%= submit_form_url(slug: submitter.slug) %>" class="flex-1 md:flex-none">
               <button onclick="event.stopPropagation()" class="btn btn-sm btn-neutral btn-outline bg-white w-full md:w-36 flex">
@@ -82,7 +90,7 @@
         </div>
         <% if !submission.archived_at? && !template.archived_at? && can?(:destroy, submission) %>
           <span data-tip="Archive" class="sm:tooltip tooltip-top">
-            <%= button_to button_title(title: nil, disabled_with: 'Arch', icon: svg_icon('archive', class: 'w-6 h-6')), submission_path(submission), class: 'btn btn-outline btn-sm w-full md:w-fit', form: { class: 'flex' }, title: 'Archive', method: :delete, data: { turbo_confirm: 'Are you sure?' }, onclick: 'event.stopPropagation()' %>
+            <%= button_to button_title(title: nil, disabled_with: 'Arch', icon: svg_icon('archive', class: 'w-6 h-6')), submission_path(submission), class: 'btn btn-outline btn-sm w-full md:w-fit', form: { class: 'flex' }, title: 'Archive', method: :delete, onclick: 'event.stopPropagation()' %>
           </span>
         <% end %>
         <% if local_assigns[:archived] && can?(:destroy, submission) %>
@@ -101,12 +109,18 @@
                 <%= latest_submitter.status %>
               </span>
             </div>
+          <% elsif submission.expired? %>
+            <div class="tooltip flex" data-tip="<%= l(submission.expire_at.in_time_zone(current_account.timezone), format: :short, locale: current_account.locale) %>">
+              <span class="badge badge-error md:w-32 bg-opacity-50 badge-lg uppercase text-sm font-semibold">
+                Expired
+              </span>
+            </div>
           <% end %>
           <div class="w-full <%= is_submission_completed ? 'space-y-1' : 'space-y-4' %> md:space-y-0">
             <% submitters.each_with_index do |submitter, index| %>
               <div class="relative flex justify-between items-start md:items-center space-x-3">
                 <span class="flex flex-col md:flex-row md:items-center gap-2">
-                  <% unless is_submission_completed %>
+                  <% if !is_submission_completed && !submission.expired? %>
                     <div class="tooltip flex" data-tip="<%= l(submitter.status_event_at.in_time_zone(current_account.timezone), format: :short, locale: current_account.locale) %>">
                       <span class="badge md:w-24 <%= status_badges[submitter.status] %> bg-opacity-50 uppercase text-xs font-semibold">
                         <%= submitter.status %>
@@ -132,7 +146,7 @@
                       </download-button>
                     </button>
                   </form>
-                <% elsif !template.archived_at? && !submission.archived_at? && !is_submission_completed %>
+                <% elsif !template.archived_at? && !submission.archived_at? && !is_submission_completed && !submission.expired? && !submitter.declined_at? %>
                   <div class="relative flex items-center space-x-3">
                     <% if current_user.email == submitter.email %>
                       <form data-turbo="false" method="get" action="<%= submit_form_url(slug: submitter.slug) %>">
@@ -178,7 +192,12 @@
         </div>
         <% if !submission.archived_at? && !template.archived_at? %>
           <span data-tip="Archive" class="sm:tooltip tooltip-top">
-            <%= button_to button_title(title: nil, disabled_with: 'Arch', icon: svg_icon('archive', class: 'w-6 h-6')), submission_path(submission), class: 'btn btn-outline btn-sm w-full md:w-fit', form: { class: 'flex' }, title: 'Archive', method: :delete, data: { turbo_confirm: 'Are you sure?' }, onclick: 'event.stopPropagation()' %>
+            <%= button_to button_title(title: nil, disabled_with: 'Arch', icon: svg_icon('archive', class: 'w-6 h-6')), submission_path(submission), class: 'btn btn-outline btn-sm w-full md:w-fit', form: { class: 'flex' }, title: 'Archive', method: :delete, onclick: 'event.stopPropagation()' %>
+          </span>
+        <% end %>
+        <% if local_assigns[:archived] && can?(:destroy, submission) %>
+          <span data-tip="Remove" class="sm:tooltip tooltip-top">
+            <%= button_to button_title(title: nil, disabled_with: 'Rem', icon: svg_icon('trash', class: 'w-6 h-6')), submission_path(submission, permanently: true), class: 'btn btn-outline btn-sm w-full md:w-fit', form: { class: 'flex' }, title: 'Remove', method: :delete, data: { turbo_confirm: 'Submission deletion is irreversible and will permanently remove all associated signed documents with it. Are you sure?' }, onclick: 'event.stopPropagation()' %>
           </span>
         <% end %>
       </div>

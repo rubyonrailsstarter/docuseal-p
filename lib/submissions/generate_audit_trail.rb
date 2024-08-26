@@ -21,6 +21,8 @@ module Submissions
       'GBP' => '£'
     }.freeze
 
+    TESTING_FOOTER = GenerateResultAttachments::TESTING_FOOTER
+
     RTL_REGEXP = TextUtils::RTL_REGEXP
     MAX_IMAGE_HEIGHT = 100
 
@@ -102,7 +104,34 @@ module Submissions
                 .rectangle(0, 0, box.width, 20)
                 .rectangle(0, box.height - 20, box.width, 20)
                 .fill
+
+          maybe_add_background(canvas, submission, page_size)
         end
+
+        with_signature_id = submission.account.account_configs
+                                      .exists?(key: AccountConfig::WITH_SIGNATURE_ID, value: true)
+
+        if with_signature_id || submission.account.testing?
+          canvas.save_graphics_state do
+            document_id = Digest::MD5.hexdigest(submission.slug).upcase
+
+            canvas.font(FONT_NAME, size: FONT_SIZE)
+
+            text =
+              if submission.account.testing?
+                if with_signature_id
+                  "#{TESTING_FOOTER} | ID: #{document_id}"
+                else
+                  TESTING_FOOTER
+                end
+              else
+                "Document ID: #{document_id}"
+              end
+
+            canvas.text(text, at: [2, 4])
+          end
+        end
+
         style.frame = style.create_frame(canvas.context, 50)
       end
 
@@ -335,6 +364,8 @@ module Submissions
     def sign_reason
       'Signed with DocuSeal.co'
     end
+
+    def maybe_add_background(_canvas, _submission, _page_size); end
 
     def add_logo(column, _submission = nil)
       column.image(PdfIcons.logo_io, width: 40, height: 40, position: :float)

@@ -19,6 +19,7 @@ module Api
 
       submissions = paginate(submissions.preload(:created_by_user, :submitters,
                                                  template: :folder,
+                                                 combined_document_attachment: :blob,
                                                  audit_trail_attachment: :blob))
 
       render json: {
@@ -147,6 +148,7 @@ module Api
     def submissions_params
       permitted_attrs = [
         :send_email, :send_sms, :bcc_completed, :completed_redirect_url, :reply_to, :go_to_last,
+        :expire_at,
         {
           message: %i[subject body],
           submitters: [[:send_email, :send_sms, :completed_redirect_url, :uuid, :name, :email, :role,

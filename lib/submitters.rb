@@ -2,6 +2,7 @@
 
 module Submitters
   TRUE_VALUES = ['1', 'true', true].freeze
+  PRELOAD_ALL_PAGES_AMOUNT = 200
 
   module_function
 
@@ -20,6 +21,12 @@ module Submitters
   end
 
   def select_attachments_for_download(submitter)
+    if AccountConfig.exists?(account_id: submitter.submission.account_id,
+                             key: AccountConfig::COMBINE_PDF_RESULT_KEY,
+                             value: true) && submitter.submission.combined_document_attachment
+      return [submitter.submission.combined_document_attachment]
+    end
+
     original_documents = submitter.submission.template.documents.preload(:blob)
     is_more_than_two_images = original_documents.count(&:image?) > 1
 
@@ -27,6 +34,25 @@ module Submitters
       is_more_than_two_images &&
         original_documents.find { |a| a.uuid == (attachment.metadata['original_uuid'] || attachment.uuid) }&.image?
     end
+  end
+
+  def preload_with_pages(submitter)
+    ActiveRecord::Associations::Preloader.new(
+      records: [submitter],
+      associations: [submission: [:template, { template_schema_documents: :blob }]]
+    ).call
+
+    total_pages =
+      submitter.submission.template_schema_documents.sum { |e| e.metadata.dig('pdf', 'number_of_pages').to_i }
+
+    if total_pages < PRELOAD_ALL_PAGES_AMOUNT
+      ActiveRecord::Associations::Preloader.new(
+        records: submitter.submission.template_schema_documents,
+        associations: [:blob, { preview_images_attachments: :blob }]
+      ).call
+    end
+
+    submitter
   end
 
   def create_attachment!(submitter, params)

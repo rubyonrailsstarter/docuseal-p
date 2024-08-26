@@ -94,6 +94,7 @@
             :field="field"
             @click-condition="isShowConditionsModal = true"
             @click-description="isShowDescriptionModal = true"
+            @click-formula="isShowFormulaModal = true"
           />
           <span
             v-else-if="field.type !== 'heading'"
@@ -129,6 +130,7 @@
                 @click-description="isShowDescriptionModal = true"
                 @click-condition="isShowConditionsModal = true"
                 @set-draw="$emit('set-draw', $event)"
+                @remove-area="removeArea"
                 @scroll-to="$emit('scroll-to', $event)"
               />
             </ul>
@@ -280,7 +282,7 @@ export default {
     IconMathFunction,
     FieldType
   },
-  inject: ['template', 'save', 'backgroundColor', 'selectedAreaRef', 't'],
+  inject: ['template', 'save', 'backgroundColor', 'selectedAreaRef', 't', 'locale'],
   props: {
     field: {
       type: Object,
@@ -340,12 +342,17 @@ export default {
 
     if (this.field.type === 'date') {
       this.field.preferences.format ||=
-        (Intl.DateTimeFormat().resolvedOptions().locale.endsWith('-US') || new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' }).format(new Date()).match(/\s(?:CST|CDT|PST|PDT|EST|EDT)$/) ? 'MM/DD/YYYY' : 'DD/MM/YYYY')
+       ({ 'de-DE': 'DD.MM.YYYY' }[this.locale] || ((Intl.DateTimeFormat().resolvedOptions().locale.endsWith('-US') || new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' }).format(new Date()).match(/\s(?:CST|CDT|PST|PDT|EST|EDT)$/)) ? 'MM/DD/YYYY' : 'DD/MM/YYYY'))
     }
   },
   methods: {
+    removeArea (area) {
+      this.field.areas.splice(this.field.areas.indexOf(area), 1)
+
+      this.save()
+    },
     buildDefaultName (field, fields) {
-      if (field.type === 'payment' && field.preferences?.price) {
+      if (field.type === 'payment' && field.preferences?.price && !field.preferences?.formula) {
         const { price, currency } = field.preferences || {}
 
         const formattedPrice = new Intl.NumberFormat([], {

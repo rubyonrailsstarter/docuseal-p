@@ -6,6 +6,7 @@
 #
 #  id            :bigint           not null, primary key
 #  completed_at  :datetime
+#  declined_at   :datetime
 #  email         :string
 #  ip            :string
 #  metadata      :text             not null
@@ -20,15 +21,17 @@
 #  values        :text             not null
 #  created_at    :datetime         not null
 #  updated_at    :datetime         not null
+#  account_id    :bigint           not null
 #  external_id   :string
 #  submission_id :bigint           not null
 #
 # Indexes
 #
-#  index_submitters_on_email          (email)
-#  index_submitters_on_external_id    (external_id)
-#  index_submitters_on_slug           (slug) UNIQUE
-#  index_submitters_on_submission_id  (submission_id)
+#  index_submitters_on_account_id_and_id  (account_id,id)
+#  index_submitters_on_email              (email)
+#  index_submitters_on_external_id        (external_id)
+#  index_submitters_on_slug               (slug) UNIQUE
+#  index_submitters_on_submission_id      (submission_id)
 #
 # Foreign Keys
 #
@@ -36,8 +39,8 @@
 #
 class Submitter < ApplicationRecord
   belongs_to :submission
+  belongs_to :account
   has_one :template, through: :submission
-  has_one :account, through: :submission
 
   attribute :values, :string, default: -> { {} }
   attribute :preferences, :string, default: -> { {} }
@@ -57,7 +60,9 @@ class Submitter < ApplicationRecord
   scope :completed, -> { where.not(completed_at: nil) }
 
   def status
-    if completed_at?
+    if declined_at?
+      'declined'
+    elsif completed_at?
       'completed'
     elsif opened_at?
       'opened'
@@ -81,6 +86,6 @@ class Submitter < ApplicationRecord
   end
 
   def status_event_at
-    completed_at || opened_at || sent_at || created_at
+    declined_at || completed_at || opened_at || sent_at || created_at
   end
 end

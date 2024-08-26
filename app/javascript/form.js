@@ -22,6 +22,8 @@ safeRegisterElement('submission-form', class extends HTMLElement {
       scrollPadding: this.dataset.scrollPadding || '-80px',
       dryRun: this.dataset.dryRun === 'true',
       expand: ['true', 'false'].includes(this.dataset.expand) ? this.dataset.expand === 'true' : null,
+      withSignatureId: this.dataset.withSignatureId === 'true',
+      requireSigningReason: this.dataset.requireSigningReason === 'true',
       withConfetti: this.dataset.withConfetti !== 'false',
       withDisclosure: this.dataset.withDisclosure === 'true',
       withTypedSignature: this.dataset.withTypedSignature !== 'false',

@@ -1,6 +1,6 @@
 <template>
   <template
-    v-for="step in steps"
+    v-for="(step, stepIndex) in steps"
     :key="step[0].uuid"
   >
     <template
@@ -18,17 +18,20 @@
           <FieldArea
             :ref="setAreaRef"
             v-model="values[field.uuid]"
+            :values="values"
             :field="field"
             :area="area"
             :submittable="true"
             :field-index="fieldIndex"
             :scroll-padding="scrollPadding"
+            :submitter="submitter"
             :with-field-placeholder="withFieldPlaceholder"
+            :with-signature-id="withSignatureId"
             :is-active="currentStep === step"
             :with-label="withLabel && !withFieldPlaceholder"
             :is-value-set="step.some((f) => f.uuid in values)"
             :attachments-index="attachmentsIndex"
-            @click="$emit('focus-step', step)"
+            @click="$emit('focus-step', stepIndex)"
           />
         </Teleport>
       </template>
@@ -49,6 +52,15 @@ export default {
       type: Array,
       required: false,
       default: () => []
+    },
+    withSignatureId: {
+      type: Boolean,
+      required: false,
+      default: false
+    },
+    submitter: {
+      type: Object,
+      required: true
     },
     values: {
       type: Object,
@@ -74,6 +86,11 @@ export default {
       type: Boolean,
       required: false,
       default: true
+    },
+    scrollEl: {
+      type: Object,
+      required: false,
+      default: null
     },
     currentStep: {
       type: Array,
@@ -109,7 +126,12 @@ export default {
         if (container.style.overflow === 'hidden') {
           this.scrollInContainer(areaRef.$el)
         } else {
-          areaRef.$refs.scrollToElem.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          const targetRect = areaRef.$refs.scrollToElem.getBoundingClientRect()
+          const root = this.$root.$el?.parentNode?.classList?.contains('ds') ? this.$root.$el : document.body
+          const rootRect = root.getBoundingClientRect()
+          const scrollEl = this.scrollEl || window
+
+          scrollEl.scrollTo({ top: targetRect.top - rootRect.top, behavior: 'smooth' })
         }
 
         return true
@@ -128,7 +150,7 @@ export default {
 
       const targetTopRelativeToBox = targetRect.top - boxRect.top
 
-      scrollbox.scrollTop = targetTopRelativeToBox - container.offsetHeight + formContainer.offsetHeight + target.offsetHeight + padding
+      scrollbox.scrollTo({ top: targetTopRelativeToBox - container.offsetHeight + formContainer.offsetHeight + target.offsetHeight + padding, behavior: 'smooth' })
     },
     setAreaRef (el) {
       if (el) {
